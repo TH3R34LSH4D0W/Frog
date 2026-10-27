@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GunSpin - Browser Game</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #101522;
+  color: white;
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+header { padding: 18px; }
+h1 { margin: 0; color: #65edaa; letter-spacing: 4px; }
+p { color: #b9c6d9; }
+.game {
+  width: min(960px, 100%);
+  margin: auto;
+  padding: 10px;
+}
+canvas {
+  display: block;
+  width: 100%;
+  background: #151c2d;
+  border: 2px solid #35425a;
+  border-radius: 12px;
+  touch-action: manipulation;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin: 16px;
+}
+button {
+  padding: 13px 24px;
+  border: 0;
+  border-radius: 8px;
+  background: #65edaa;
+  color: #101522;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+button:hover { background: #9bffca; }
+#shoot { background: #ffc45b; }
+footer { padding: 18px; color: #8290a7; }
+</style>
+</head>
+<body>
+<header>
+  <h1>GUNSPIN</h1>
+  <p>Shoot, spin, and fly as far as you can!</p>
+</header>
+
+<main class="game">
+  <canvas id="game" width="960" height="540"></canvas>
+  <div class="controls">
+    <button id="shoot">SHOOT!</button>
+    <button id="restart">RESTART</button>
+  </div>
+  <p>Press SPACE or click SHOOT. Press R to restart.</p>
+</main>
+<footer>GunSpin Browser Edition</footer>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let angle, spin, x, vx, distance, ammo, bullets, ended;
+const ground = 420;
+
+function reset() {
+  angle = -0.25;
+  spin = 0;
+  x = 120;
+  vx = 0;
+  distance = 0;
+  ammo = 30;
+  bullets = [];
+  ended = false;
+}
+
+function shoot() {
+  if (ended || ammo <= 0) return;
+
+  const px = x;
+  const py = ground - 34;
+  bullets.push({
+    x: px + Math.cos(angle) * 66,
+    y: py - Math.sin(angle) * 66,
+    vx: Math.cos(angle) * 13,
+    vy: -Math.sin(angle) * 13
+  });
+
+  spin += 0.17;
+  vx += 1.25;
+  ammo--;
+
+  if (ammo === 0) {
+    setTimeout(() => {
+      if (ammo === 0) ended = true;
+    }, 3500);
+  }
+}
+
+document.getElementById("shoot").addEventListener("click", shoot);
+document.getElementById("restart").addEventListener("click", reset);
+
+document.addEventListener("keydown", e => {
+  if (e.code === "Space") {
+    e.preventDefault();
+    shoot();
+  }
+  if (e.key.toLowerCase() === "r") reset();
+});
+
+function drawGun(px, py) {
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(-angle);
+
+  ctx.fillStyle = "#d7dfeb";
+  ctx.fillRect(0, -10, 55, 15);
+
+  ctx.fillStyle = "#71829c";
+  ctx.fillRect(42, -7, 29, 9);
+
+  ctx.fillStyle = "#45536c";
+  ctx.fillRect(9, 3, 15, 25);
+
+  ctx.restore();
+}
+
+function frame() {
+  const w = canvas.width;
+  const h = canvas.height;
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "#151c2d";
+  ctx.fillRect(0, 0, w, h);
+
+  // Stars
+  ctx.fillStyle = "#53617b";
+  for (let i = 0; i < 45; i++) {
+    const sx = (i * 173) % w;
+    const sy = (i * 71) % 300;
+    ctx.fillRect(sx, sy, 3, 3);
+  }
+
+  // Hills
+  ctx.fillStyle = "#26334a";
+  for (let i = 0; i < 9; i++) {
+    let hx = i * 160 - (x * 0.18 % 160);
+    ctx.beginPath();
+    ctx.ellipse(hx, 385, 125, 90, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Ground
+  ctx.fillStyle = "#39465b";
+  ctx.fillRect(0, ground, w, h - ground);
+  ctx.fillStyle = "#65edaa";
+  ctx.fillRect(0, ground, w, 4);
+
+  ctx.fillStyle = "#65738a";
+  for (let i = 0; i < 20; i++) {
+    const gx = (i * 90 - x % 90 + 90) % w;
+    ctx.fillRect(gx, ground + 35, 40, 3);
+  }
+
+  // Player
+  const px = 200;
+  const py = ground - 34;
+
+  ctx.fillStyle = "#f1b76a";
+  ctx.beginPath();
+  ctx.arc(px, py - 48, 12, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#64aaff";
+  ctx.fillRect(px - 13, py - 35, 26, 34);
+
+  drawGun(px, py);
+
+  // Bullets
+  ctx.fillStyle = "#ffd966";
+  for (const b of bullets) {
+    ctx.beginPath();
+    ctx.arc(b.x - x + 200, b.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // HUD
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 26px Arial";
+  ctx.fillText("GUNSPIN", 24, 40);
+
+  ctx.fillStyle = "#65edaa";
+  ctx.font = "bold 25px Arial";
+  ctx.fillText("DISTANCE: " + Math.floor(distance) + " m", 24, 82);
+
+  ctx.fillStyle = "#ffc45b";
+  ctx.fillText("AMMO: " + ammo, 24, 120);
+
+  if (ended) {
+    ctx.fillStyle = "rgba(0,0,0,0.75)";
+    ctx.fillRect(230, 160, 500, 190);
+    ctx.fillStyle = "#fff";
+    ctx.textAlign = "center";
+    ctx.font = "bold 38px Arial";
+    ctx.fillText("GAME OVER", 480, 225);
+    ctx.font = "22px Arial";
+    ctx.fillText("Distance: " + Math.floor(distance) + " m", 480, 270);
+    ctx.fillText("Click RESTART to play again", 480, 310);
+    ctx.textAlign = "left";
+  }
+}
+
+let previous = 0;
+function loop(time) {
+  const dt = Math.min((time - previous) / 16.67 || 1, 2);
+  previous = time;
+
+  if (!ended) {
+    angle += spin * dt;
+    spin *= Math.pow(0.992, dt);
+    spin -= Math.sin(angle) * 0.0008 * dt;
+
+    x += vx * dt;
+    vx *= Math.pow(0.992, dt);
+    distance = Math.max(0, x - 120);
+
+    for (const b of bullets) {
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      b.vy += 0.12 * dt;
+    }
+
+    bullets = bullets.filter(b =>
+      b.y < canvas.height && b.x < x + 1300
+    );
+
+    if (ammo === 0 && Math.abs(vx) < 0.04 &&
+        Math.abs(spin) < 0.002) {
+      ended = true;
+    }
+  }
+
+  drawResponsive();
+  requestAnimationFrame(loop);
+}
+
+function drawResponsive() {
+  // The game world uses a fixed logical resolution.
+  // CSS scales it to fit mobile and desktop screens.
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  frame();
+}
+
+reset();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
